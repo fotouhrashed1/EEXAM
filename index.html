@@ -3,21 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Classroom Reservation</title>
+    <title>Classroom Reservation System</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyA0dsoVpf4WGq6kkpCa5Gq0A8UifP2D8WM",
+            authDomain: "eexam-334c9.firebaseapp.com",
+            projectId: "eexam-334c9",
+            storageBucket: "eexam-334c9.firebasestorage.app",
+            messagingSenderId: "232527152637",
+            appId: "1:232527152637:web:29f8e739ec14a035124594",
+            measurementId: "G-XKT0JRR5S5"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        export { db };
+    </script>
+    <script type="module" src="script.js" defer></script>
 </head>
 <body>
     <div class="container">
         <h1>Classroom Reservation System</h1>
         <form id="reservation-form">
+            <label for="course-code">Course Code:</label>
+            <input type="text" id="course-code" name="course-code" required>
+
             <label for="date">Select Date:</label>
             <input type="date" id="date" name="date" required>
-            
+
             <label for="time">Select Time Slot:</label>
-            <select id="time" name="time" required>
-                <!-- Options will be dynamically generated -->
-            </select>
-            
+            <select id="time" name="time" multiple required></select>
+
             <label for="classrooms">Select Classrooms (Hold Ctrl to select multiple):</label>
             <select id="classrooms" name="classrooms" multiple required>
                 <option value="101">Room 101</option>
@@ -26,19 +50,16 @@
                 <option value="104">Room 104</option>
                 <option value="105">Room 105</option>
             </select>
-            
+
             <button type="submit">Reserve</button>
         </form>
-        
+
         <div id="reservation-status"></div>
-        
+
         <h2>Reservation Schedule</h2>
         <div id="schedule-container">
-            <table id="schedule-table">
-                <!-- Schedule table will be dynamically generated -->
-            </table>
+            <table id="schedule-table"></table>
         </div>
     </div>
-    <script src="script.js"></script>
 </body>
 </html>

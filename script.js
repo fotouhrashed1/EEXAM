@@ -1,103 +1,113 @@
-// Array to store reservations
-const reservations = [];
+import { db } from "./index.html";
+import { collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+
+// Array to store reservations temporarily
+let reservations = [];
 
 // Generate time slots (30-minute intervals from 9:00 AM to 5:00 PM)
-const startTime = 9 * 60; // 9:00 AM in minutes
-const endTime = 17 * 60; // 5:00 PM in minutes
 const timeSlots = [];
-for (let time = startTime; time < endTime; time += 30) {
-    const hours = Math.floor(time / 60);
-    const minutes = time % 60;
-    timeSlots.push(`${hours}:${minutes.toString().padStart(2, '0')}`);
+for (let i = 9 * 60; i < 17 * 60; i += 30) {
+    const hours = Math.floor(i / 60);
+    const minutes = i % 60;
+    timeSlots.push(`${hours}:${minutes.toString().padStart(2, "0")}`);
 }
 
-// Populate the time dropdown in the form
-const timeSelect = document.getElementById('time');
+// Populate time slot dropdown
+const timeSelect = document.getElementById("time");
 timeSlots.forEach(slot => {
-    const option = document.createElement('option');
+    const option = document.createElement("option");
     option.value = slot;
     option.textContent = slot;
     timeSelect.appendChild(option);
 });
 
-// Create the schedule table
-const scheduleTable = document.getElementById('schedule-table');
+// Generate schedule table
 function generateScheduleTable() {
-    // Clear existing table
-    scheduleTable.innerHTML = '';
+    const scheduleTable = document.getElementById("schedule-table");
+    scheduleTable.innerHTML = "";
 
-    // Generate header row
-    const headerRow = document.createElement('tr');
-    const dateHeader = document.createElement('th');
-    dateHeader.textContent = 'Date';
+    const headerRow = document.createElement("tr");
+    const dateHeader = document.createElement("th");
+    dateHeader.textContent = "Date";
     headerRow.appendChild(dateHeader);
+
     timeSlots.forEach(slot => {
-        const timeHeader = document.createElement('th');
+        const timeHeader = document.createElement("th");
         timeHeader.textContent = slot;
         headerRow.appendChild(timeHeader);
     });
     scheduleTable.appendChild(headerRow);
 
-    // Generate rows for each date
-    const startDate = new Date('2023-12-28');
-    const endDate = new Date('2024-01-23');
-    for (let date = startDate; date <= endDate; date.setDate(date.getDate() + 1)) {
-        const row = document.createElement('tr');
-
-        // Date cell
-        const dateCell = document.createElement('td');
-        dateCell.textContent = date.toISOString().split('T')[0];
+    reservations.forEach(({ date, time, courseCode, classroom }) => {
+        const row = document.createElement("tr");
+        const dateCell = document.createElement("td");
+        dateCell.textContent = date;
         row.appendChild(dateCell);
 
-        // Time slots
         timeSlots.forEach(slot => {
-            const cell = document.createElement('td');
-            cell.className = 'available'; // Default to available
-            cell.textContent = 'Available';
-
-            // Check if the slot is reserved
-            const reserved = reservations.some(
-                reservation =>
-                    reservation.date === date.toISOString().split('T')[0] &&
-                    reservation.time === slot
-            );
-            if (reserved) {
-                cell.className = 'reserved';
-                cell.textContent = 'Reserved';
+            const cell = document.createElement("td");
+            if (time.includes(slot)) {
+                cell.className = "reserved";
+                cell.textContent = `${courseCode} - Room ${classroom}`;
+            } else {
+                cell.className = "available";
+                cell.textContent = "Available";
             }
-
             row.appendChild(cell);
         });
 
         scheduleTable.appendChild(row);
+    });
+}
+
+// Load reservations from Firebase
+async function loadReservations() {
+    reservations = [];
+    const querySnapshot = await getDocs(collection(db, "reservations"));
+    querySnapshot.forEach(doc => {
+        reservations.push(doc.data());
+    });
+    generateScheduleTable();
+}
+
+// Save a reservation to Firebase
+async function saveReservation(courseCode, date, time, classroom) {
+    try {
+        await addDoc(collection(db, "reservations"), {
+            courseCode,
+            date,
+            time,
+            classroom,
+        });
+        loadReservations(); // Refresh schedule after saving
+    } catch (error) {
+        console.error("Error adding reservation:", error);
     }
 }
 
-// Update the schedule on form submission
-document.getElementById('reservation-form').addEventListener('submit', function (e) {
-    e.preventDefault();
+// Handle form submission
+document.getElementById("reservation-form").addEventListener("submit", async event => {
+    event.preventDefault();
 
-    // Get form values
-    const date = document.getElementById('date').value;
-    const time = document.getElementById('time').value;
-    const classrooms = Array.from(document.getElementById('classrooms').selectedOptions).map(option => option.value);
+    const courseCode = document.getElementById("course-code").value;
+    const date = document.getElementById("date").value;
+    const times = Array.from(document.getElementById("time").selectedOptions).map(option => option.value);
+    const classrooms = Array.from(document.getElementById("classrooms").selectedOptions).map(option => option.value);
 
-    // Add reservations for selected classrooms
-    classrooms.forEach(classroom => {
-        reservations.push({ date, time, classroom });
-    });
+    for (const time of times) {
+        for (const classroom of classrooms) {
+            const isReserved = reservations.some(reservation => reservation.date === date && reservation.time === time && reservation.classroom === classroom);
+            if (isReserved) {
+                alert(`Room ${classroom} is already reserved at ${time} on ${date}`);
+                return;
+            }
+            await saveReservation(courseCode, date, time, classroom);
+        }
+    }
 
-    // Update the schedule
-    generateScheduleTable();
-
-    // Show success message
-    document.getElementById('reservation-status').innerText = 
-        `Reservation successful for ${classrooms.join(', ')} at ${time} on ${date}.`;
-    document.getElementById('reservation-status').style.color = 'green';
-
-    // Clear the form
-    document.getElementById('reservation-form').reset();
+    alert("Reservation successful!");
+    document.getElementById("reservation-form").reset();
 });
 
-// Initial generation of the schedule table
-generateScheduleTable();
+// Load reservations on page load
+window.onload = loadReservations;
